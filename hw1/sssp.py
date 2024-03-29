@@ -24,3 +24,23 @@ def dijkstra(graph, start):
                     shortest_paths[v] = new_distance
 
     return shortest_paths
+
+
+def bellman_ford(graph, start):
+    n_vertices = graph.shape[0]
+    distance = np.full(n_vertices, np.inf)
+    distance[start] = 0
+
+    for _ in range(n_vertices - 1):
+        for i in range(n_vertices):
+            for j in range(n_vertices):
+                if graph[i, j] and distance[i] + graph[i, j] < distance[j]:
+                    distance[j] = distance[i] + graph[i, j]
+
+    # Проверка на наличие циклов отрицательного веса
+    for i in range(n_vertices):
+        for j in range(n_vertices):
+            if graph[i, j] and distance[i] + graph[i, j] < distance[j]:
+                return None
+
+    return distance
