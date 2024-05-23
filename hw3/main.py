@@ -9,7 +9,7 @@ import numpy as np
 from ortools.constraint_solver import pywrapcp, routing_enums_pb2
 import acopy
 import matplotlib.pyplot as plt
-
+import pandas as pd
 
 # Generate random distances
 def generate_distances(n):
@@ -18,7 +18,6 @@ def generate_distances(n):
         for j in range(i + 1, n):
             dists[i][j] = dists[j][i] = random.randint(1, 99)
     return dists
-
 
 # Held-Karp algorithm (Dynamic Programming)
 def held_karp(dists):
@@ -53,7 +52,6 @@ def held_karp(dists):
     path.append(0)
     return opt, list(reversed(path))
 
-
 # Nearest Neighbor Heuristic
 def nearest_neighbor(dists):
     n = len(dists)
@@ -68,7 +66,6 @@ def nearest_neighbor(dists):
     total_weight += dists[path[-1]][start]
     return total_weight
 
-
 # Genetic Algorithm using DEAP
 def genetic_algorithm(dists):
     n = len(dists)
@@ -80,8 +77,10 @@ def genetic_algorithm(dists):
             distance += distance_matrix[gene1, gene2]
         return distance,
 
-    creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
-    creator.create("Individual", list, fitness=creator.FitnessMin)
+    if not hasattr(genetic_algorithm, "creator_setup"):
+        creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+        creator.create("Individual", list, fitness=creator.FitnessMin)
+        genetic_algorithm.creator_setup = True
 
     toolbox = base.Toolbox()
     toolbox.register("indices", random.sample, range(n), n)
@@ -103,7 +102,6 @@ def genetic_algorithm(dists):
 
     return hof[0].fitness.values[0]
 
-
 # Simulated Annealing using scipy
 def simulated_annealing_alg(dists):
     n = len(dists)
@@ -121,15 +119,12 @@ def simulated_annealing_alg(dists):
     result = dual_annealing(tsp_objective, bounds)
     return result.fun
 
-
 # Branch and Bound Algorithm
 maxsize = float('inf')
-
 
 def copyToFinal(curr_path, final_path):
     final_path[:len(curr_path)] = curr_path[:]
     final_path[len(curr_path) - 1] = curr_path[0]
-
 
 def firstMin(adj, i):
     min_cost = maxsize
@@ -137,7 +132,6 @@ def firstMin(adj, i):
         if adj[i][k] < min_cost and i != k:
             min_cost = adj[i][k]
     return min_cost
-
 
 def secondMin(adj, i):
     first, second = maxsize, maxsize
@@ -150,7 +144,6 @@ def secondMin(adj, i):
         elif (adj[i][j] <= second and adj[i][j] != first):
             second = adj[i][j]
     return second
-
 
 def TSPRec(adj, curr_bound, curr_weight, level, curr_path, visited, final_path, final_res):
     if level == len(adj):
@@ -184,7 +177,6 @@ def TSPRec(adj, curr_bound, curr_weight, level, curr_path, visited, final_path, 
                 if curr_path[j] != -1:
                     visited[curr_path[j]] = True
 
-
 def branch_and_bound(adj):
     n = len(adj)
     curr_bound = 0
@@ -202,7 +194,6 @@ def branch_and_bound(adj):
 
     TSPRec(adj, curr_bound, 0, 1, curr_path, visited, final_path, final_res)
     return final_res[0]
-
 
 # Google OR-Tools
 def ortools_tsp(dists):
@@ -228,7 +219,6 @@ def ortools_tsp(dists):
     else:
         return None
 
-
 # Ant Colony Optimization using acopy
 def ant_colony_optimization(dists):
     G = nx.Graph()
@@ -242,7 +232,6 @@ def ant_colony_optimization(dists):
 
     tour = solver.solve(G, colony, limit=100)
     return tour.cost
-
 
 # Christofides' Algorithm
 def christofides_tsp(dists):
@@ -287,10 +276,8 @@ def christofides_tsp(dists):
 
     return total_weight
 
-
-# Function to run experiments and collect data
 def run_experiments():
-    vertex_counts = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    vertex_counts = [5, 6, 7, 8, 9, 10, 11, 12]
     num_trials = 10
 
     results = {
@@ -304,15 +291,53 @@ def run_experiments():
         "Christofides' Algorithm": []
     }
 
+    errors = {
+        "Nearest Neighbor": [],
+        "Genetic Algorithm": [],
+        "Simulated Annealing": [],
+        "Branch and Bound": [],
+        "Google OR-Tools": [],
+        "Ant Colony Optimization": [],
+        "Christofides' Algorithm": []
+    }
+
+    std_devs = {
+        "Nearest Neighbor": [],
+        "Genetic Algorithm": [],
+        "Simulated Annealing": [],
+        "Branch and Bound": [],
+        "Google OR-Tools": [],
+        "Ant Colony Optimization": [],
+        "Christofides' Algorithm": []
+    }
+
+    times = {
+        "Dynamic Programming": [],
+        "Nearest Neighbor": [],
+        "Genetic Algorithm": [],
+        "Simulated Annealing": [],
+        "Branch and Bound": [],
+        "Google OR-Tools": [],
+        "Ant Colony Optimization": [],
+        "Christofides' Algorithm": []
+    }
+
     for n in vertex_counts:
         print(f"{n} vertices")
         dp_times = []
+        nn_errors = []
         nn_times = []
+        ga_errors = []
         ga_times = []
+        sa_errors = []
         sa_times = []
+        bb_errors = []
         bb_times = []
+        ortools_errors = []
         ortools_times = []
+        aco_errors = []
         aco_times = []
+        christofides_errors = []
         christofides_times = []
 
         for j in range(num_trials):
@@ -321,98 +346,141 @@ def run_experiments():
 
             start = time.time()
             dp_result, _ = held_karp(dists)
-            end = time.time()
-            dp_time = end - start
+            dp_time = time.time() - start
             dp_times.append(dp_time)
 
             start = time.time()
             nn_result = nearest_neighbor(dists)
-            end = time.time()
-            nn_time = end - start
+            nn_time = time.time() - start
+            nn_error = abs(dp_result - nn_result) / dp_result
+            nn_errors.append(nn_error)
             nn_times.append(nn_time)
 
             start = time.time()
             ga_result = genetic_algorithm(dists)
-            end = time.time()
-            ga_time = end - start
+            ga_time = time.time() - start
+            ga_error = abs(dp_result - ga_result) / dp_result
+            ga_errors.append(ga_error)
             ga_times.append(ga_time)
 
             start = time.time()
             sa_result = simulated_annealing_alg(dists)
-            end = time.time()
-            sa_time = end - start
+            sa_time = time.time() - start
+            sa_error = abs(dp_result - sa_result) / dp_result
+            sa_errors.append(sa_error)
             sa_times.append(sa_time)
 
             start = time.time()
             bb_result = branch_and_bound(dists)
-            end = time.time()
-            bb_time = end - start
+            bb_time = time.time() - start
+            bb_error = abs(dp_result - bb_result) / dp_result
+            bb_errors.append(bb_error)
             bb_times.append(bb_time)
 
             start = time.time()
             ortools_result = ortools_tsp(dists)
-            end = time.time()
-            ortools_time = end - start
+            ortools_time = time.time() - start
+            ortools_error = abs(dp_result - ortools_result) / dp_result
+            ortools_errors.append(ortools_error)
             ortools_times.append(ortools_time)
 
             start = time.time()
             aco_result = ant_colony_optimization(dists)
-            end = time.time()
-            aco_time = end - start
+            aco_time = time.time() - start
+            aco_error = abs(dp_result - aco_result) / dp_result
+            aco_errors.append(aco_error)
             aco_times.append(aco_time)
 
             start = time.time()
             christofides_result = christofides_tsp(dists)
-            end = time.time()
-            christofides_time = end - start
+            christofides_time = time.time() - start
+            christofides_error = abs(dp_result - christofides_result) / dp_result
+            christofides_errors.append(christofides_error)
             christofides_times.append(christofides_time)
 
-            local_results = {
-                "Dynamic Programming": (dp_result, dp_time),
-                "Nearest Neighbor": (nn_result, nn_time),
-                "Genetic Algorithm": (ga_result, ga_time),
-                "Simulated Annealing": (sa_result, sa_time),
-                "Branch and Bound": (bb_result, bb_time),
-                "Google OR-Tools": (ortools_result, ortools_time),
-                "Ant Colony Optimization": (aco_result, aco_time),
-                "Christofides' Algorithm": (christofides_result, christofides_time)
-            }
-
-            for alg, (res, time_taken) in local_results.items():
-                print(f"{alg}: Result = {res}, Time = {time_taken:.8f} seconds")
-
         results["Dynamic Programming"].append(np.mean(dp_times))
-        results["Nearest Neighbor"].append(np.mean(nn_times))
-        results["Genetic Algorithm"].append(np.mean(ga_times))
-        results["Simulated Annealing"].append(np.mean(sa_times))
-        results["Branch and Bound"].append(np.mean(bb_times))
-        results["Google OR-Tools"].append(np.mean(ortools_times))
-        results["Ant Colony Optimization"].append(np.mean(aco_times))
-        results["Christofides' Algorithm"].append(np.mean(christofides_times))
+        results["Nearest Neighbor"].append(np.mean(nn_errors))
+        results["Genetic Algorithm"].append(np.mean(ga_errors))
+        results["Simulated Annealing"].append(np.mean(sa_errors))
+        results["Branch and Bound"].append(np.mean(bb_errors))
+        results["Google OR-Tools"].append(np.mean(ortools_errors))
+        results["Ant Colony Optimization"].append(np.mean(aco_errors))
+        results["Christofides' Algorithm"].append(np.mean(christofides_errors))
 
-    return vertex_counts, results
+        times["Dynamic Programming"].append(np.mean(dp_times))
+        times["Nearest Neighbor"].append(np.mean(nn_times))
+        times["Genetic Algorithm"].append(np.mean(ga_times))
+        times["Simulated Annealing"].append(np.mean(sa_times))
+        times["Branch and Bound"].append(np.mean(bb_times))
+        times["Google OR-Tools"].append(np.mean(ortools_times))
+        times["Ant Colony Optimization"].append(np.mean(aco_times))
+        times["Christofides' Algorithm"].append(np.mean(christofides_times))
 
+        std_devs["Nearest Neighbor"].append(np.std(nn_errors))
+        std_devs["Genetic Algorithm"].append(np.std(ga_errors))
+        std_devs["Simulated Annealing"].append(np.std(sa_errors))
+        std_devs["Branch and Bound"].append(np.std(bb_errors))
+        std_devs["Google OR-Tools"].append(np.std(ortools_errors))
+        std_devs["Ant Colony Optimization"].append(np.std(aco_errors))
+        std_devs["Christofides' Algorithm"].append(np.std(christofides_errors))
 
-# Function to plot the results
+    return vertex_counts, results, times, std_devs
+
+# Функция для построения таблицы
+def build_table(vertex_counts, results, times, std_devs):
+    data = {
+        "Number of Vertices": vertex_counts,
+        "Dynamic Programming (Time)": times["Dynamic Programming"],
+        "Nearest Neighbor (Error)": results["Nearest Neighbor"],
+        "Nearest Neighbor (Time)": times["Nearest Neighbor"],
+        "Nearest Neighbor (Std Dev)": std_devs["Nearest Neighbor"],
+        "Genetic Algorithm (Error)": results["Genetic Algorithm"],
+        "Genetic Algorithm (Time)": times["Genetic Algorithm"],
+        "Genetic Algorithm (Std Dev)": std_devs["Genetic Algorithm"],
+        "Simulated Annealing (Error)": results["Simulated Annealing"],
+        "Simulated Annealing (Time)": times["Simulated Annealing"],
+        "Simulated Annealing (Std Dev)": std_devs["Simulated Annealing"],
+        "Branch and Bound (Error)": results["Branch and Bound"],
+        "Branch and Bound (Time)": times["Branch and Bound"],
+        "Branch and Bound (Std Dev)": std_devs["Branch and Bound"],
+        "Google OR-Tools (Error)": results["Google OR-Tools"],
+        "Google OR-Tools (Time)": times["Google OR-Tools"],
+        "Google OR-Tools (Std Dev)": std_devs["Google OR-Tools"],
+        "Ant Colony Optimization (Error)": results["Ant Colony Optimization"],
+        "Ant Colony Optimization (Time)": times["Ant Colony Optimization"],
+        "Ant Colony Optimization (Std Dev)": std_devs["Ant Colony Optimization"],
+        "Christofides' Algorithm (Error)": results["Christofides' Algorithm"],
+        "Christofides' Algorithm (Time)": times["Christofides' Algorithm"],
+        "Christofides' Algorithm (Std Dev)": std_devs["Christofides' Algorithm"]
+    }
+    df = pd.DataFrame(data)
+    return df
+
+# Функция для сохранения таблицы
+def save_table(df, filename):
+    df.to_csv(filename, index=False)
+
+# Функция для построения графика
 def plot_results(vertex_counts, results):
     plt.figure(figsize=(10, 8))
-
-    for alg, times in results.items():
-        plt.plot(vertex_counts, times, label=alg)
+    for alg, errors in results.items():
+        if alg != "Dynamic Programming" and alg != "Branch and Bound":
+            plt.plot(vertex_counts, errors, label=f"{alg} (Error)")
 
     plt.xlabel('Number of Vertices')
-    plt.ylabel('Average Running Time (seconds)')
-    plt.title('Running Time vs. Number of Vertices for TSP Algorithms')
+    plt.ylabel('Average Relative Error')
+    plt.title('Relative Error vs. Number of Vertices for TSP Algorithms')
     plt.legend()
     plt.grid(True)
     plt.show()
 
-
 # Main
 def main():
-    vertex_counts, results = run_experiments()
+    vertex_counts, results, times, std_devs = run_experiments()
+    df = build_table(vertex_counts, results, times, std_devs)
+    print(df)
+    save_table(df, "tsp_results.csv")
     plot_results(vertex_counts, results)
-
 
 if __name__ == "__main__":
     main()
